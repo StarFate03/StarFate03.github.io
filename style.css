@@ -1067,3 +1067,14 @@ body.loaded .reveal-load { animation-play-state: running; }
   color: var(--text-dim);
   letter-spacing: 0.06em;
 }
+
+/* ════════ MOBILE PERFORMANCE ════════ */
+@media (max-width: 1000px) {
+  .work, .cred, .skill-block, .cert-chip {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  /* line is plain stroke on mobile (no SVG blur) — bump opacity to compensate */
+  .flow-line { opacity: 0.45; }
+  [data-theme="light"] .flow-line { opacity: 0.4; }
+}

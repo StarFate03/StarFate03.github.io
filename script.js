@@ -52,7 +52,7 @@ document.querySelectorAll('[data-magnetic]').forEach(el => {
 
 // ════ TYPEWRITER ═══════════════════════════════════════
 const phrases = [
-  'aspiring SOC analyst',
+  'aspiring penetration tester',
   'MS in AI @ CU Boulder',
   'AWS certified cloud practitioner',
   'building Monday, my AI assistant',
@@ -80,8 +80,8 @@ const railProgress = document.getElementById('railProgress');
 const sectionLabel = document.getElementById('sectionLabel');
 const sections = [
   { id: 'about', label: 'INTRO' },
-  { id: 'skills', label: 'ARSENAL' },
-  { id: 'projects', label: 'WORK' },
+  { id: 'skills', label: 'SKILLS' },
+  { id: 'projects', label: 'PROJECTS' },
   { id: 'education', label: 'CREDENTIALS' },
   { id: 'contact', label: 'CONTACT' }
 ];
@@ -166,13 +166,13 @@ const flowPath = document.getElementById('flowPath');
 const flowDot = document.getElementById('flowDot');
 const flowSvg = document.getElementById('flowSvg');
 let pathLen = 0;
+let pathCache = [];   // pre-sampled points: getPointAtLength is too slow for phones
 
 function buildFlowPath() {
   const main = document.querySelector('main');
   const mainTop = main.getBoundingClientRect().top + window.scrollY;
   const W = main.offsetWidth;
 
-  // anchor Y = vertical middle of each section (relative to main)
   const yOf = id => {
     const el = document.getElementById(id);
     const r = el.getBoundingClientRect();
@@ -180,13 +180,22 @@ function buildFlowPath() {
   };
 
   const hero = document.getElementById('about');
-  const heroBottom = hero.offsetHeight - 60;        // start under the hero text
+  const heroBottom = hero.offsetHeight - 60;
   const mobile = W < 1000;
-  // on mobile, hug the edges so the line stays out of the reading column
-  const L = mobile ? 0.06 : 0.30;   // left bend
-  const R = mobile ? 0.94 : 0.72;   // right bend
+  const L = mobile ? 0.06 : 0.30;
+  const R = mobile ? 0.94 : 0.72;
   flowPath.setAttribute('stroke-width', mobile ? 2.5 : 3.5);
   flowDot.setAttribute('r', mobile ? 5 : 7);
+
+  // the glow filter forces a full blur re-render EVERY frame the line
+  // moves — fine on desktop GPUs, brutal on phones. Plain stroke on mobile.
+  if (mobile) {
+    flowPath.removeAttribute('filter');
+    flowDot.removeAttribute('filter');
+  } else {
+    flowPath.setAttribute('filter', 'url(#flowGlow)');
+    flowDot.setAttribute('filter', 'url(#flowGlow)');
+  }
 
   const stops = [
     { x: W * (mobile ? 0.85 : 0.62), y: heroBottom },
@@ -196,12 +205,10 @@ function buildFlowPath() {
     { x: W * (mobile ? 0.5 : 0.58), y: yOf('contact') + 40 }
   ];
 
-  // size svg to cover the whole journey
   const H = stops[stops.length - 1].y + 120;
   flowSvg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   flowSvg.style.height = H + 'px';
 
-  // smooth S-curves between stops
   let d = `M ${stops[0].x} ${stops[0].y}`;
   for (let i = 1; i < stops.length; i++) {
     const p0 = stops[i - 1], p1 = stops[i];
@@ -213,38 +220,52 @@ function buildFlowPath() {
   pathLen = flowPath.getTotalLength();
   flowPath.style.strokeDasharray = pathLen;
   flowPath.style.strokeDashoffset = pathLen;
+
+  // sample the path ONCE — all later lookups hit this array, not the DOM
+  const SAMPLES = 300;
+  pathCache = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const len = (pathLen * i) / SAMPLES;
+    const pt = flowPath.getPointAtLength(len);
+    pathCache.push({ len, x: pt.x, y: pt.y });
+  }
 }
 
 let targetP = 0, currentP = 0;
 
 function computeFlow() {
   const rect = flowSvg.getBoundingClientRect();
-  // the y (in svg coords) that sits at the CENTER of the visitor's screen
   const targetY = window.innerHeight * 0.5 - rect.top;
-  if (targetY <= 0) { targetP = 0; return; }
+  if (targetY <= 0 || !pathCache.length) { targetP = 0; return; }
 
-  // binary-search the path length whose point sits at that y
-  // (path y always increases, so this is safe)
-  let lo = 0, hi = pathLen;
-  for (let i = 0; i < 22; i++) {
-    const mid = (lo + hi) / 2;
-    if (flowPath.getPointAtLength(mid).y < targetY) lo = mid;
+  // binary search the CACHED samples (zero DOM calls)
+  let lo = 0, hi = pathCache.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (pathCache[mid].y < targetY) lo = mid;
     else hi = mid;
   }
-  targetP = Math.min(lo / pathLen, 1);
+  targetP = Math.min(pathCache[lo].len / pathLen, 1);
 }
 
 function renderFlow() {
-  currentP += (targetP - currentP) * 0.14;
-  const drawn = pathLen * currentP;
-  flowPath.style.strokeDashoffset = pathLen - drawn;
-  if (drawn > 1) {
-    const pt = flowPath.getPointAtLength(drawn);
-    flowDot.setAttribute('cx', pt.x);
-    flowDot.setAttribute('cy', pt.y);
-    flowDot.style.opacity = 1;
-  } else {
-    flowDot.style.opacity = 0;
+  const diff = targetP - currentP;
+  // idle skip: nothing moved, do nothing this frame
+  if (Math.abs(diff) > 0.0004) {
+    currentP += diff * 0.14;
+    const drawn = pathLen * currentP;
+    flowPath.style.strokeDashoffset = pathLen - drawn;
+    if (drawn > 1 && pathCache.length) {
+      // interpolate dot position from cache
+      const idx = Math.min((currentP * (pathCache.length - 1)) | 0, pathCache.length - 2);
+      const a = pathCache[idx], b = pathCache[idx + 1];
+      const t = (drawn - a.len) / (b.len - a.len || 1);
+      flowDot.setAttribute('cx', a.x + (b.x - a.x) * t);
+      flowDot.setAttribute('cy', a.y + (b.y - a.y) * t);
+      flowDot.style.opacity = 1;
+    } else {
+      flowDot.style.opacity = 0;
+    }
   }
   requestAnimationFrame(renderFlow);
 }
