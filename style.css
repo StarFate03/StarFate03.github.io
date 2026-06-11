@@ -1078,3 +1078,24 @@ body.loaded .reveal-load { animation-play-state: running; }
   .flow-line { opacity: 0.45; }
   [data-theme="light"] .flow-line { opacity: 0.4; }
 }
+
+/* ════════ HERO COPY (intro + about) ════════ */
+.hero-copy {
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.hero-about {
+  font-size: 0.95rem;
+  color: var(--text-soft);
+  line-height: 1.8;
+  padding-left: 1.1rem;
+  border-left: 2px solid var(--amber);
+}
+.hero-about em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.1em;
+  color: var(--amber);
+}
