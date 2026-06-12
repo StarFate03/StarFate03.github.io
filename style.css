@@ -1099,3 +1099,31 @@ body.loaded .reveal-load { animation-play-state: running; }
   font-size: 1.1em;
   color: var(--amber);
 }
+
+/* ════════ PROJECT PHOTOS ════════ */
+.work-media {
+  margin: 1.2rem 0 1.5rem;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+}
+[data-theme="light"] .work-media { box-shadow: 0 8px 30px rgba(30,24,16,0.1); }
+.work-media img {
+  width: 100%;
+  display: block;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.work:hover .work-media img { transform: scale(1.025); }
+
+/* ════════ PRELOADER SCRAMBLE ════════ */
+.preloader-scramble {
+  font-family: var(--font-mono);
+  font-size: clamp(1.1rem, 4.2vw, 2.6rem);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--amber);
+  white-space: nowrap;
+}

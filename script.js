@@ -1,20 +1,39 @@
-// ════ PRELOADER (0 → 100 counter) ═════════════════════
+// ════ PRELOADER (scramble-decode the name) ═════════════
 const preloader = document.getElementById('preloader');
-const preloaderCount = document.getElementById('preloaderCount');
-let count = 0;
+const scrambleEl = document.getElementById('preloaderScramble');
+const TARGET = 'DARREN LIM YONG JUN';
+const GLYPHS = '!<>-_\\/[]{}—=+*^?#ABCDEF0123456789';
+let frame = 0;
+const TOTAL_FRAMES = 160;           // ~2.7s of decoding
+let lastGlyphs = '';
 
-const countUp = setInterval(() => {
-  count += Math.floor(Math.random() * 14) + 4;
-  if (count >= 100) {
-    count = 100;
-    clearInterval(countUp);
+function scramble() {
+  frame++;
+  const lockedCount = Math.floor((frame / TOTAL_FRAMES) * TARGET.length);
+  // refresh the random glyphs every 3rd frame so the flicker is readable
+  if (frame % 3 === 1 || !lastGlyphs) {
+    let g = '';
+    for (let i = 0; i < TARGET.length; i++) g += GLYPHS[(Math.random() * GLYPHS.length) | 0];
+    lastGlyphs = g;
+  }
+  let out = '';
+  for (let i = 0; i < TARGET.length; i++) {
+    if (TARGET[i] === ' ') { out += ' '; continue; }
+    if (i < lockedCount) out += TARGET[i];
+    else out += lastGlyphs[i];
+  }
+  scrambleEl.textContent = out;
+  if (frame < TOTAL_FRAMES) {
+    requestAnimationFrame(scramble);
+  } else {
+    scrambleEl.textContent = TARGET;
     setTimeout(() => {
       preloader.classList.add('done');
       document.body.classList.add('loaded');
-    }, 300);
+    }, 1000);
   }
-  preloaderCount.textContent = count;
-}, 110);
+}
+requestAnimationFrame(scramble);
 
 // ════ CURSOR ═══════════════════════════════════════════
 const cursorDot = document.getElementById('cursorDot');
@@ -53,7 +72,7 @@ document.querySelectorAll('[data-magnetic]').forEach(el => {
 // ════ TYPEWRITER ═══════════════════════════════════════
 const phrases = [
   'aspiring penetration tester',
-  'MS in AI @ CU Boulder',
+  "Master's in AI @ CU Boulder",
   'AWS certified cloud practitioner',
   'building Monday, my AI assistant',
   'engineering IoT for aquaculture'
@@ -324,3 +343,16 @@ function updateJourney() {
 }
 window.addEventListener('scroll', updateJourney, { passive: true });
 updateJourney();
+
+// ════ PROJECT PHOTOS — accepts .jpeg / .jpg / .png ═════
+document.querySelectorAll('.work-media img[data-img]').forEach(img => {
+  const base = img.dataset.img;
+  const exts = ['jpeg', 'jpg', 'png'];
+  let i = 0;
+  img.onload = () => img.closest('.work-media').classList.add('loaded');
+  img.onerror = () => {
+    if (i < exts.length) img.src = base + '.' + exts[i++];
+    // all failed → figure simply stays hidden
+  };
+  img.src = base + '.' + exts[i++];
+});
