@@ -1,3 +1,6 @@
+// respect the OS "reduce motion" setting across every JS-driven effect
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 // ════ PRELOADER (scramble-decode the name) ═════════════
 const preloader = document.getElementById('preloader');
 const scrambleEl = document.getElementById('preloaderScramble');
@@ -6,6 +9,15 @@ const GLYPHS = '!<>-_\\/[]{}—=+*^?#ABCDEF0123456789';
 let frame = 0;
 const TOTAL_FRAMES = 160;           // ~2.7s of decoding
 let lastGlyphs = '';
+
+function revealSite() {
+  preloader.classList.add('done');
+  document.body.classList.add('loaded');
+}
+// safety net: if the scramble ever stalls, never leave the hero invisible
+window.addEventListener('load', () => {
+  setTimeout(() => { if (!document.body.classList.contains('loaded')) revealSite(); }, 4000);
+});
 
 function scramble() {
   frame++;
@@ -27,13 +39,16 @@ function scramble() {
     requestAnimationFrame(scramble);
   } else {
     scrambleEl.textContent = TARGET;
-    setTimeout(() => {
-      preloader.classList.add('done');
-      document.body.classList.add('loaded');
-    }, 1000);
+    setTimeout(revealSite, 1000);
   }
 }
-requestAnimationFrame(scramble);
+if (reduceMotion) {
+  // no decode animation — show the name and reveal the page promptly
+  scrambleEl.textContent = TARGET;
+  setTimeout(revealSite, 400);
+} else {
+  requestAnimationFrame(scramble);
+}
 
 // ════ CURSOR ═══════════════════════════════════════════
 const cursorDot = document.getElementById('cursorDot');
@@ -92,7 +107,8 @@ function type() {
     setTimeout(type, 20);
   }
 }
-setTimeout(type, 1500);
+if (reduceMotion) tw.textContent = phrases[0];   // static, no looping animation
+else setTimeout(type, 1500);
 
 // ════ RIGHT RAIL: progress + section label ═════════════
 const railProgress = document.getElementById('railProgress');
@@ -105,7 +121,8 @@ const sections = [
   { id: 'contact', label: 'CONTACT' }
 ];
 
-window.addEventListener('scroll', () => {
+const railDots = document.querySelectorAll('.rail-dot');
+function updateRail() {
   const total = document.documentElement.scrollHeight - window.innerHeight;
   railProgress.style.height = (window.scrollY / total * 100) + '%';
 
@@ -116,10 +133,10 @@ window.addEventListener('scroll', () => {
     if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.4) current = s;
   }
   sectionLabel.textContent = current.label;
-  document.querySelectorAll('.rail-dot').forEach(dot => {
+  railDots.forEach(dot => {
     dot.classList.toggle('active', dot.dataset.section === current.id);
   });
-});
+}
 
 // ════ MOBILE MENU ══════════════════════════════════════
 const hamburger = document.getElementById('hamburger');
@@ -301,7 +318,6 @@ if (flowPath) {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => { buildFlowPath(); computeFlow(); }, 200);
   });
-  window.addEventListener('scroll', computeFlow, { passive: true });
 }
 
 // ════ COLOR JOURNEY — background shifts per section ════
@@ -341,8 +357,22 @@ function updateJourney() {
   r.setProperty('--j2', `rgba(${B[0]|0},${B[1]|0},${B[2]|0},${ALPHAS.b})`);
   r.setProperty('--j3', `rgba(${C[0]|0},${C[1]|0},${C[2]|0},${ALPHAS.c})`);
 }
-window.addEventListener('scroll', updateJourney, { passive: true });
 updateJourney();
+
+// ════ UNIFIED SCROLL DISPATCHER ════════════════════════
+// one passive listener, rAF-gated: all scroll-driven work (rail progress,
+// flow line, colour journey) runs at most once per frame — no layout thrash
+let scrollScheduled = false;
+function onScrollFrame() {
+  scrollScheduled = false;
+  updateRail();
+  computeFlow();
+  updateJourney();
+}
+window.addEventListener('scroll', () => {
+  if (!scrollScheduled) { scrollScheduled = true; requestAnimationFrame(onScrollFrame); }
+}, { passive: true });
+updateRail();
 
 // ════ PROJECT PHOTOS — accepts .jpeg / .jpg / .png ═════
 document.querySelectorAll('.work-media img[data-img]').forEach(img => {
