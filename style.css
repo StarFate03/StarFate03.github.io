@@ -203,14 +203,19 @@ a, button { cursor: none; }
 .rail-socials {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  align-items: center;
+  gap: 0.7rem;
 }
 .rail-socials a {
+  width: 34px; height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   color: var(--text-dim);
-  transition: color 0.25s, transform 0.25s;
-  display: inline-block;
+  transition: color 0.25s, background 0.25s, transform 0.25s;
 }
-.rail-socials a:hover { color: var(--amber); }
+.rail-socials a:hover { color: var(--amber); background: var(--amber-soft); }
 
 .rail-section-label {
   font-family: var(--font-mono);
